@@ -2,21 +2,41 @@
 const form = document.querySelector("#note-form");
 const noteInput = document.querySelector("#note-input");
 const categorySelect = document.querySelector("#note-category");
+const searchInput = document.querySelector("#search-input");
 const notesList = document.querySelector("#notes-list");
 const noteCount = document.querySelector("#note-count");
 const errorMessage = document.querySelector("#error-message");
 const clearAllBtn = document.querySelector("#clear-all");
 
 const MAX_LENGTH = 200;
+const STORAGE_KEY = "quicknotes";
 const CATEGORY_LABELS = {
   personal: "Personal",
   work: "Work",
   study: "Study",
 };
 
+// ---------- Storage ----------
+function loadNotes() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === null) {
+      return [];
+    }
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveNotes() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+}
+
 // ---------- Data ----------
 // Each note: { id, text, category, createdAt }
-let notes = [];
+let notes = loadNotes();
 
 // ---------- Render ----------
 function getCountMessage() {
@@ -61,9 +81,22 @@ function createNoteCard(note) {
 }
 
 function render() {
+  // Search filter
+  const term = searchInput.value.trim().toLowerCase();
+  const visibleNotes = notes.filter((note) =>
+    note.text.toLowerCase().includes(term)
+  );
+
   notesList.replaceChildren();
 
-  for (const note of notes) {
+  if (notes.length > 0 && visibleNotes.length === 0) {
+    const empty = document.createElement("li");
+    empty.classList.add("empty-message");
+    empty.textContent = "No notes match your search.";
+    notesList.append(empty);
+  }
+
+  for (const note of visibleNotes) {
     notesList.append(createNoteCard(note));
   }
 
@@ -97,6 +130,7 @@ function addNote(event) {
   };
 
   notes.push(note);
+  saveNotes();
   showError("");
   noteInput.value = "";
   noteInput.focus();
@@ -105,6 +139,7 @@ function addNote(event) {
 
 function deleteNote(id) {
   notes = notes.filter((note) => note.id !== id);
+  saveNotes();
   render();
 }
 
@@ -114,12 +149,14 @@ function clearAll() {
   }
   if (confirm("Delete all notes?")) {
     notes = [];
+    saveNotes();
     render();
   }
 }
 
 // ---------- Events ----------
 form.addEventListener("submit", addNote);
+searchInput.addEventListener("input", render);
 clearAllBtn.addEventListener("click", clearAll);
 
 // ---------- Start ----------
